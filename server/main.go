@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -9,6 +10,7 @@ import (
 	pb "server/pb"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"google.golang.org/grpc"
 )
 
@@ -192,10 +194,84 @@ func control(messages chan<- string, commands chan *pb.Command) {
 					state = Play
 				}
 				<-ch
+			case "save":
+				ch <- true
+				saveToDb()
+				<-ch
+
+			case "load":
+				ch <- true
+				loadFromDb()
+				<-ch
 			case "print":
 				print()
 			}
 		}
+	}
+}
+
+func loadFromDb() {
+	var db *sql.DB
+	cfg := mysql.Config{
+		User:                 "myuser",
+		Passwd:               "root66",
+		Net:                  "tcp",
+		Addr:                 "mysql:3306",
+		DBName:               "mydb",
+		AllowNativePasswords: true,
+	}
+	var err error
+	db, err = sql.Open("mysql", cfg.FormatDSN())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rows, err := db.Query("SELECT Name, Duration FROM Songs")
+	if err != nil {
+		log.Printf("Select error: %v", err)
+	}
+	defer rows.Close()
+	head = nil
+	current = nil
+	for rows.Next() {
+		var name string
+		var duration int
+		rows.Scan(&name, &duration)
+		add(name, duration)
+	}
+}
+
+func saveToDb() {
+	if head == nil {
+		messages <- "Unable to save empty playlist"
+		return
+	}
+	var db *sql.DB
+	cfg := mysql.Config{
+		User:                 "myuser",
+		Passwd:               "root66",
+		Net:                  "tcp",
+		Addr:                 "mysql:3306",
+		DBName:               "mydb",
+		AllowNativePasswords: true,
+	}
+	var err error
+	db, err = sql.Open("mysql", cfg.FormatDSN())
+	if err != nil {
+		log.Fatal(err)
+	}
+	tmp := head
+	_, err = db.Exec("TRUNCATE TABLE mydb.Songs")
+	if err != nil {
+		log.Fatalf("error truncate table %v", err)
+	}
+
+	for tmp != nil {
+		_, err = db.Exec("INSERT INTO Songs (name, duration) VALUES (?, ?)", tmp.name, tmp.duration)
+		if err != nil {
+			log.Fatalf("addSong: %v", err)
+		}
+		tmp = tmp.next
 	}
 }
 

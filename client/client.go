@@ -24,7 +24,7 @@ func readInput(in *bufio.Reader) string {
 func statusPrint(messages <-chan string) {
 	for message := range messages {
 		fmt.Println(message)
-		fmt.Println("Ener command [(p)lay, pa(u)se, (n)ext, p(r)evios, (a)dd, (d)elete, (e)xit]: ")
+		fmt.Println("Enter command [(p)lay, pa(u)se, (n)ext, p(r)evios, (a)dd, (d)elete, (e)xit, print(t), (s)ave, (l)oad]: ")
 	}
 }
 
@@ -76,6 +76,10 @@ func main() {
 			command = &pb.Command{Com: "next"}
 		case "previos", "r", "R":
 			command = &pb.Command{Com: "previos"}
+		case "save", "s", "S":
+			command = &pb.Command{Com: "save"}
+		case "load", "l", "L":
+			command = &pb.Command{Com: "load"}
 		case "t":
 			command = &pb.Command{Com: "print"}
 
